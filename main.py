@@ -1,17 +1,21 @@
+import os
+from dotenv import load_dotenv
 import discord
 from discord.ext import tasks, commands
 import requests
 from supabase import create_client, Client
 
-# --- CONFIGURATION ---
-STEAM_API_KEY = "714AA0D0A53DC80E953D17CBF8BC1C66"
-SUPABASE_URL = "https://ocageyxddltmspdjceni.supabase.co"
-SUPABASE_KEY = "sb_secret_xycmCXu_lH5vjM__wwDAzQ_vm3NftEb"
-DISCORD_TOKEN = "MTUwMjU3NjMzNzg0NjY2OTM2Mg.GHfP0I.IS77FoIkhqpTLFqmimHiqddFYB-HsjC_Xaxm94"
-CHANNEL_ID = 1468152284671377436
+# --- LOAD ENVIRONMENT VARIABLES ---
+load_dotenv()
+
+# These now pull from your .env file instead of being visible in the code
+STEAM_API_KEY = os.getenv("STEAM_API_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+CHANNEL_ID = 1468152284671377436 # This is safe to keep as it's just a channel ID
 
 # Game Configuration Mapping
-# Note: Rust has multiple product IDs in a list
 GAMES = {
     "730": {
         "name": "Counter-Strike 2",
@@ -26,6 +30,7 @@ GAMES = {
     }
 }
 
+# Initialize Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
@@ -56,11 +61,13 @@ class SupremeMultiBot(commands.Bot):
 
                 if news_id != self.last_updates[app_id]:
                     # Filter for actual game updates
-                    if "update" in news_title.lower() or "patch" in news_title.lower() or "devblog" in news_title.lower():
+                    title_lower = news_title.lower()
+                    if any(word in title_lower for word in ["update", "patch", "devblog"]):
                         self.last_updates[app_id] = news_id
+                        print(f"UPDATE DETECTED for {info['name']}: {news_title}")
                         await self.handle_freeze(info['name'], info['prod_ids'], news_title)
                     else:
-                        self.last_updates[app_id] = news_id  # Still skip so we don't re-check news
+                        self.last_updates[app_id] = news_id
             except Exception as e:
                 print(f"Error checking {info['name']}: {e}")
 
