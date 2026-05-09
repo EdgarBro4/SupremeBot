@@ -11,6 +11,9 @@ SUPABASE_KEY = "sb_secret_xycmCXu_lH5vjM__wwDAzQ_vm3NftEb"
 DISCORD_TOKEN = "MTUwMjU3NjMzNzg0NjY2OTM2Mg.GHfP0I.IS77FoIkhqpTLFqmimHiqddFYB-HsjC_Xaxm94"
 CHANNEL_ID = 1468152284671377436
 
+# Your specific Product ID for Supreme Internal CS2
+CS2_PRODUCT_ID = "036024ab-b8e2-4326-967b-62ef35a4cda9"
+
 # Initialize Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -19,12 +22,10 @@ class CS2UpdateBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
-        # Setting up the prefix here correctly
         super().__init__(command_prefix="!", intents=intents)
         self.last_update_id = None
 
     async def setup_hook(self):
-        # We don't need add_command here anymore, it's handled by the decorator below
         self.check_for_updates.start()
 
     @tasks.loop(minutes=2)
@@ -38,7 +39,7 @@ class CS2UpdateBot(commands.Bot):
 
             if self.last_update_id is None:
                 self.last_update_id = news_id
-                print(f"Bot started. Monitoring CS2 updates. Current News ID: {news_id}")
+                print(f"Bot started. Current News ID: {news_id}")
                 return
 
             if news_id != self.last_update_id:
@@ -53,36 +54,33 @@ class CS2UpdateBot(commands.Bot):
         if channel:
             embed = discord.Embed(
                 title="🚨 CS2 UPDATE DETECTED",
-                description=f"**Update:** {update_title}\n\n**Action:** All CS2 products have been **FROZEN**.",
+                description=f"**Update:** {update_title}\n\n**Action:** CS2 products and keys have been **FROZEN**.",
                 color=discord.Color.red()
             )
             await channel.send(embed=embed)
 
-        supabase.table("products").update({"purchase_available": False}).eq("id",
-                                                                            "036024ab-b8e2-4326-967b-62ef35a4cda9").execute()
-        supabase.table("licence_keys").update({"is_frozen": True}).eq("product_id",
-                                                                      "036024ab-b8e2-4326-967b-62ef35a4cda9").execute()
-        print("Update applied to Supabase successfully.")
+        # 1. Update ONLY the CS2 Product in the 'products' table
+        supabase.table("products").update({"purchase_available": False}).eq("id", CS2_PRODUCT_ID).execute()
+
+        # 2. Update ONLY the CS2 Keys in the 'user_keys' table
+        supabase.table("user_keys").update({"is_frozen": True}).eq("product_id", CS2_PRODUCT_ID).execute()
+        print("Database updated: CS2 Product and Keys frozen.")
 
 
-# Start the bot
 bot = CS2UpdateBot()
 
 
-# --- DEFINING THE COMMAND OUTSIDE THE CLASS BUT LINKED TO THE BOT ---
 @bot.command(name="unfreeze")
 @commands.has_permissions(administrator=True)
 async def unfreeze(ctx):
-    """Manual command to resume sales and unfreeze keys"""
+    """Manual command to resume sales and unfreeze keys for CS2 only"""
     print(f"Unfreeze command triggered by {ctx.author}")
 
-    # Update Products
-    supabase.table("products").update({"purchase_available": True}).eq("id",
-                                                                       "036024ab-b8e2-4326-967b-62ef35a4cda9").execute()
+    # 1. Set CS2 product back to available
+    supabase.table("products").update({"purchase_available": True}).eq("id", CS2_PRODUCT_ID).execute()
 
-    # Update Keys
-    supabase.table("licence_keys").update({"is_frozen": False}).eq("product_id",
-                                                                   "036024ab-b8e2-4326-967b-62ef35a4cda9").execute()
+    # 2. Set CS2 keys back to unfrozen
+    supabase.table("user_keys").update({"is_frozen": False}).eq("product_id", CS2_PRODUCT_ID).execute()
 
     await ctx.send("✅ **Supreme Internal CS2** has been unfreezed. Sales are back online!")
 
