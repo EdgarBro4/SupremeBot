@@ -5,7 +5,7 @@ from supabase import create_client, Client
 
 # --- SECURE CONFIGURATION ---
 STEAM_API_KEY = "714AA0D0A53DC80E953D17CBF8BC1C66"
-APP_ID = "730"  # CS2 App ID
+APP_ID = "730"
 SUPABASE_URL = "https://ocageyxddltmspdjceni.supabase.co"
 SUPABASE_KEY = "sb_secret_xycmCXu_lH5vjM__wwDAzQ_vm3NftEb"
 DISCORD_TOKEN = "MTUwMjU3NjMzNzg0NjY2OTM2Mg.GHfP0I.IS77FoIkhqpTLFqmimHiqddFYB-HsjC_Xaxm94"
@@ -18,13 +18,13 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 class CS2UpdateBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
-        intents.message_content = True  # Required to read !unfreeze
+        intents.message_content = True
+        # Setting up the prefix here correctly
         super().__init__(command_prefix="!", intents=intents)
         self.last_update_id = None
-        # Add the command to the bot manually
-        self.add_command(self.unfreeze)
 
     async def setup_hook(self):
+        # We don't need add_command here anymore, it's handled by the decorator below
         self.check_for_updates.start()
 
     @tasks.loop(minutes=2)
@@ -45,7 +45,6 @@ class CS2UpdateBot(commands.Bot):
                 self.last_update_id = news_id
                 print(f"NEW UPDATE DETECTED: {news_title}")
                 await self.handle_freeze_sequence(news_title)
-
         except Exception as e:
             print(f"Error fetching Steam updates: {e}")
 
@@ -63,25 +62,29 @@ class CS2UpdateBot(commands.Bot):
                                                                             "036024ab-b8e2-4326-967b-62ef35a4cda9").execute()
         supabase.table("licence_keys").update({"is_frozen": True}).eq("product_id",
                                                                       "036024ab-b8e2-4326-967b-62ef35a4cda9").execute()
-        print("Update applied to Supabase: Products/Keys Frozen.")
-
-    @commands.command(name="unfreeze")
-    @commands.has_permissions(administrator=True)
-    async def unfreeze(self, ctx):
-        """Manual command to resume sales and unfreeze keys"""
-        print("Unfreeze command triggered in Discord!")
-
-        # Update Products
-        supabase.table("products").update({"purchase_available": True}).eq("id",
-                                                                           "036024ab-b8e2-4326-967b-62ef35a4cda9").execute()
-
-        # Update Keys
-        supabase.table("licence_keys").update({"is_frozen": False}).eq("product_id",
-                                                                       "036024ab-b8e2-4326-967b-62ef35a4cda9").execute()
-
-        await ctx.send("✅ **Supreme Internal CS2** has been unfreezed. Sales are back online!")
+        print("Update applied to Supabase successfully.")
 
 
 # Start the bot
 bot = CS2UpdateBot()
+
+
+# --- DEFINING THE COMMAND OUTSIDE THE CLASS BUT LINKED TO THE BOT ---
+@bot.command(name="unfreeze")
+@commands.has_permissions(administrator=True)
+async def unfreeze(ctx):
+    """Manual command to resume sales and unfreeze keys"""
+    print(f"Unfreeze command triggered by {ctx.author}")
+
+    # Update Products
+    supabase.table("products").update({"purchase_available": True}).eq("id",
+                                                                       "036024ab-b8e2-4326-967b-62ef35a4cda9").execute()
+
+    # Update Keys
+    supabase.table("licence_keys").update({"is_frozen": False}).eq("product_id",
+                                                                   "036024ab-b8e2-4326-967b-62ef35a4cda9").execute()
+
+    await ctx.send("✅ **Supreme Internal CS2** has been unfreezed. Sales are back online!")
+
+
 bot.run(DISCORD_TOKEN)
