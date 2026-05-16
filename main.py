@@ -76,15 +76,20 @@ class SupremeMultiBot(commands.Bot):
         if channel:
             embed = discord.Embed(
                 title=f"🚨 {game_name.upper()} UPDATE DETECTED",
-                description=f"**Update:** {title}\n\n**Action:** All {game_name} products and keys are now **FROZEN**.",
+                description=f"**Update:** {title}\n\n**Action:** All {game_name} products are **FROZEN** and set to **On Update**.",
                 color=discord.Color.red()
             )
             await channel.send(embed=embed)
 
+        # Freezes purchases, changes status to "On Update", and freezes user keys
         for p_id in prod_ids:
-            supabase.table("products").update({"purchase_available": False}).eq("id", p_id).execute()
+            supabase.table("products").update({
+                "purchase_available": False,
+                "status": "On Update"
+            }).eq("id", p_id).execute()
+            
             supabase.table("user_keys").update({"is_frozen": True}).eq("product_id", p_id).execute()
-        print(f"Database: All {game_name} entries frozen.")
+        print(f"Database: All {game_name} entries frozen and set to 'On Update'.")
 
 
 bot = SupremeMultiBot()
@@ -125,13 +130,17 @@ async def unfreeze(ctx, game: str, version: str = None):
         await ctx.send(f"❌ '{game}' is not a valid game choice.")
         return
 
-    # Execute the database updates
+    # Unfreezes purchases, sets status back to "Undetected", and unfreezes keys
     for p_id in target_ids:
-        supabase.table("products").update({"purchase_available": True}).eq("id", p_id).execute()
+        supabase.table("products").update({
+            "purchase_available": True,
+            "status": "Undetected"
+        }).eq("id", p_id).execute()
+        
         supabase.table("user_keys").update({"is_frozen": False}).eq("product_id", p_id).execute()
 
     display_name = f"Rust {version.capitalize()}" if game == "rust" else "CS2"
-    await ctx.send(f"✅ **{display_name}** products and keys have been unfreezed!")
+    await ctx.send(f"✅ **{display_name}** products are now **Undetected**, keys unfrozen, and store opened!")
 
 
 bot.run(DISCORD_TOKEN)
